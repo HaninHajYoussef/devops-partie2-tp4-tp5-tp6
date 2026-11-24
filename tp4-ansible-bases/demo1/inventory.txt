@@ -1,0 +1,14 @@
+# Remplace les IP par celles de tes 2 nœuds gérés (ip -br a sur chaque nœud)
+[webserver]
+192.168.56.102
+
+[ftpserver]
+192.168.56.103
+
+# "nodes" est un groupe parent qui contient les deux groupes ci-dessus
+[nodes:children]
+webserver
+ftpserver
+
+[nodes:vars]
+ansible_user=hanin

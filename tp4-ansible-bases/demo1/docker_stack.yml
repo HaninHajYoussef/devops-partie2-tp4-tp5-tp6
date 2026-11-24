@@ -1,0 +1,156 @@
+---
+# TP4 - Partie 4 : Jenkins + Docker + Portainer + conteneur web (playbook monolithique)
+- name: Installer Jenkins, Docker, Portainer et déployer le conteneur web
+  hosts: nodes
+  become: true
+  gather_facts: true
+
+  vars:
+    # Clé du dépôt Jenkins LTS (nouvelle clé depuis Jenkins 2.541.1)
+    jenkins_repo_key_url: https://pkg.jenkins.io/debian-stable/jenkins.io-2026.key
+    jenkins_repo: "deb [signed-by=/etc/apt/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/"
+    jenkins_java_package: openjdk-21-jre
+    jenkins_port: 8080
+    docker_user: "{{ ansible_user | default('vagrant') }}"
+    portainer_image: portainer/portainer-ce:lts
+    portainer_https_port: 9443
+    portainer_http_port: 9000
+    # Image poussée sur Docker Hub au TP4 partie 4 (remplace par ton compte Docker Hub)
+    app_image: haninhajyoussef/devops-web:latest
+    # true  = construire l'image sur le nœud (pas besoin de Docker Hub)
+    # false = tirer l'image depuis Docker Hub
+    app_build_local: true
+    app_dir: /opt/webapp
+    app_container_name: webapp
+    app_port: 8081          # 8080 est déjà pris par Jenkins
+
+  tasks:
+    - name: Installer Java et les prérequis de Jenkins
+      ansible.builtin.apt:
+        name:
+          - fontconfig
+          - "{{ jenkins_java_package }}"
+          - ca-certificates
+          - curl
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Créer le dossier des clés APT
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Télécharger la clé du dépôt Jenkins
+      ansible.builtin.get_url:
+        url: "{{ jenkins_repo_key_url }}"
+        dest: /etc/apt/keyrings/jenkins-keyring.asc
+        mode: '0644'
+
+    - name: Ajouter le dépôt Jenkins
+      ansible.builtin.apt_repository:
+        repo: "{{ jenkins_repo }}"
+        filename: jenkins
+        state: present
+
+    - name: Installer Jenkins
+      ansible.builtin.apt:
+        name: jenkins
+        state: present
+
+    - name: Démarrer Jenkins et l'activer au boot
+      ansible.builtin.service:
+        name: jenkins
+        state: started
+        enabled: true
+
+    - name: Attendre que Jenkins écoute sur son port
+      ansible.builtin.wait_for:
+        port: "{{ jenkins_port }}"
+        timeout: 300
+
+    - name: Lire le mot de passe administrateur initial
+      ansible.builtin.slurp:
+        src: /var/lib/jenkins/secrets/initialAdminPassword
+      register: jenkins_initial_password
+      failed_when: false
+
+    - name: Afficher le mot de passe administrateur initial
+      ansible.builtin.debug:
+        msg: "Jenkins http://{{ ansible_host | default(inventory_hostname) }}:{{ jenkins_port }} - mot de passe initial : {{ jenkins_initial_password.content | default('') | b64decode | trim }}"
+      when: jenkins_initial_password.content is defined
+
+    - name: Installer Docker Engine, Docker Compose v2 et le SDK Python
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - docker-compose-v2
+          - python3-docker
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Démarrer Docker et l'activer au boot
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Ajouter l'utilisateur au groupe docker
+      ansible.builtin.user:
+        name: "{{ docker_user }}"
+        groups: docker
+        append: true
+
+    - name: Créer le volume de données de Portainer
+      community.docker.docker_volume:
+        name: portainer_data
+
+    - name: Lancer le conteneur Portainer CE
+      community.docker.docker_container:
+        name: portainer
+        image: "{{ portainer_image }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "8000:8000"
+          - "{{ portainer_https_port }}:9443"
+          - "{{ portainer_http_port }}:9000"
+        volumes:
+          - /var/run/docker.sock:/var/run/docker.sock
+          - portainer_data:/data
+
+    - name: Créer le dossier de l'application
+      ansible.builtin.file:
+        path: "{{ app_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Copier les sources de l'image (Dockerfile + index.html)
+      ansible.builtin.copy:
+        src: app/
+        dest: "{{ app_dir }}/app/"
+        mode: '0644'
+      when: app_build_local | bool
+
+    - name: Construire l'image Docker sur le nœud
+      community.docker.docker_image:
+        name: "{{ app_image }}"
+        source: build
+        build:
+          path: "{{ app_dir }}/app"
+      when: app_build_local | bool
+
+    - name: Générer le fichier docker-compose.yml
+      ansible.builtin.template:
+        src: docker-compose.yml.j2
+        dest: "{{ app_dir }}/docker-compose.yml"
+        mode: '0644'
+
+    - name: Lancer le conteneur web avec Docker Compose
+      community.docker.docker_compose_v2:
+        project_src: "{{ app_dir }}"
+        state: present
+        pull: "{{ 'never' if (app_build_local | bool) else 'missing' }}"
+

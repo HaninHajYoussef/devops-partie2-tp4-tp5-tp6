@@ -1,0 +1,9 @@
+---
+# Image poussée sur Docker Hub au TP4 partie 4 (remplace par ton compte Docker Hub)
+app_image: haninhajyoussef/devops-web:latest
+# true  = construire l'image sur le nœud (pas besoin de Docker Hub)
+# false = tirer l'image depuis Docker Hub
+app_build_local: true
+app_dir: /opt/webapp
+app_container_name: webapp
+app_port: 8081          # 8080 est déjà pris par Jenkins

@@ -1,0 +1,11 @@
+---
+# TP5 - Réutilisation des rôles du TP4 (partie 5) via le provisioner ansible de Vagrant
+- name: Lab Vagrant - Jenkins, Docker, Portainer et conteneur web
+  hosts: nodes
+  become: true
+  gather_facts: true
+
+  roles:
+    - jenkins_install
+    - docker_portainer_install
+    - container_deployment

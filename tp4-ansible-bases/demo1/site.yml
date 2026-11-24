@@ -1,0 +1,11 @@
+---
+# TP4 - Partie 5 : même déploiement, organisé en rôles
+- name: Déployer Jenkins, Docker/Portainer et le conteneur web avec des rôles
+  hosts: nodes
+  become: true
+  gather_facts: true
+
+  roles:
+    - jenkins_install
+    - docker_portainer_install
+    - container_deployment

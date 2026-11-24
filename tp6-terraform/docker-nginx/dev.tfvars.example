@@ -1,0 +1,2 @@
+# cp dev.tfvars.example dev.tfvars && terraform apply -var-file=dev.tfvars
+external_port = 8002

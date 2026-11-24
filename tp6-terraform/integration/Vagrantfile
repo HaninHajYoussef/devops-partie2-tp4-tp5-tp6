@@ -1,0 +1,40 @@
+# vi: ft=ruby:ts=2:ai:sw=2
+# TP6 - Intégration Vagrant + Ansible + Terraform
+#   cv-vm1 : 192.168.61.11 -> CV sur le port 8001
+#   cv-vm2 : 192.168.61.12 -> CV sur le port 8002
+# Les ports 8001/8002 sont aussi redirigés sur la VM de lab :
+#   depuis le PC : http://192.168.56.101:8001 et http://192.168.56.101:8002
+
+VMS = [
+  { name: "cv-vm1", ip: "192.168.61.11", port: 8001 },
+  { name: "cv-vm2", ip: "192.168.61.12", port: 8002 },
+]
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-24.04"
+
+  VMS.each_with_index do |m, i|
+    config.vm.define m[:name] do |node|
+      node.vm.hostname = m[:name]
+      node.vm.network "private_network", ip: m[:ip]
+      node.vm.network "forwarded_port", guest: m[:port], host: m[:port], host_ip: "0.0.0.0"
+
+      node.vm.provider "virtualbox" do |vb|
+        vb.name = m[:name]
+        vb.memory = 1536
+        vb.cpus = 2
+      end
+
+      if i == VMS.size - 1
+        node.vm.provision "ansible" do |a|
+          a.compatibility_mode = "2.0"
+          a.playbook = "playbook.yml"
+          a.limit = "all"
+          a.host_vars = VMS.to_h { |v| [v[:name], { "cv_port" => v[:port] }] }
+          # Après avoir poussé l'image sur Docker Hub :
+          # a.extra_vars = { cv_build_local: false, cv_image: "TON_COMPTE/cv-onepage:latest" }
+        end
+      end
+    end
+  end
+end

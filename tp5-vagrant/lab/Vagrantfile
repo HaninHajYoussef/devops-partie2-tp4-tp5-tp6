@@ -1,0 +1,48 @@
+# vi: ft=ruby:ts=2:ai:sw=2
+# TP5 - Lab : 2 VM créées par Vagrant, configurées par Ansible (rôles du TP4)
+#
+# Réseau privé 192.168.60.0/24 (différent du 192.168.56.0/24 de la VM de lab
+# pour éviter un conflit avec son réseau host-only).
+#
+# Accès depuis le PC physique (IP de la VM de lab : 192.168.56.101) :
+#   lab-vm1 : Jenkins :18080  Portainer https :19443  App web :18081
+#   lab-vm2 : Jenkins :28080  Portainer https :29443  App web :28081
+
+VMS = [
+  { name: "lab-vm1", ip: "192.168.60.11" },
+  { name: "lab-vm2", ip: "192.168.60.12" },
+]
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/ubuntu-24.04"
+
+  VMS.each_with_index do |m, i|
+    prefix = (i + 1) * 10000
+
+    config.vm.define m[:name] do |node|
+      node.vm.hostname = m[:name]
+      node.vm.network "private_network", ip: m[:ip]
+      node.vm.network "forwarded_port", guest: 8080, host: prefix + 8080, host_ip: "0.0.0.0"  # Jenkins
+      node.vm.network "forwarded_port", guest: 9443, host: prefix + 9443, host_ip: "0.0.0.0"  # Portainer
+      node.vm.network "forwarded_port", guest: 8081, host: prefix + 8081, host_ip: "0.0.0.0"  # App web
+
+      node.vm.provider "virtualbox" do |vb|
+        vb.name = m[:name]
+        vb.memory = 2048
+        vb.cpus = 2
+      end
+
+      # Ansible est lancé une seule fois, quand la dernière VM est prête, sur toutes les VM
+      if i == VMS.size - 1
+        node.vm.provision "ansible" do |a|
+          a.compatibility_mode = "2.0"
+          a.playbook = "playbook.yml"
+          a.limit = "all"
+          a.groups = { "nodes" => VMS.map { |v| v[:name] } }
+          # a.extra_vars = { app_build_local: false, app_image: "TON_COMPTE/devops-web:latest" }
+          # a.verbose = "v"
+        end
+      end
+    end
+  end
+end

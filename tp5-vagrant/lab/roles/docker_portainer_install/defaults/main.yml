@@ -1,0 +1,5 @@
+---
+docker_user: "{{ ansible_user | default('vagrant') }}"
+portainer_image: portainer/portainer-ce:lts
+portainer_https_port: 9443
+portainer_http_port: 9000

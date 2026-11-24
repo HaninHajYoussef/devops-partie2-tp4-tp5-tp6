@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CV - Hanin Haj Youssef</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <h1>Hanin Haj Youssef</h1>
+    <p class="role">Étudiante en Master DevOps &amp; Cloud</p>
+    <nav>
+      <a href="#profil">Profil</a>
+      <a href="#competences">Compétences</a>
+      <a href="#projets">Projets</a>
+      <a href="#formation">Formation</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="profil">
+      <h2>Profil</h2>
+      <p>Passionnée par l'automatisation, l'Infrastructure as Code et le cloud.
+         <!-- À personnaliser --> </p>
+    </section>
+
+    <section id="competences">
+      <h2>Compétences</h2>
+      <ul class="tags">
+        <li>Linux</li><li>Git / GitHub</li><li>Ansible</li><li>Vagrant</li>
+        <li>Terraform</li><li>Docker</li><li>Docker Compose</li><li>Jenkins</li>
+        <li>Portainer</li><li>Nginx</li><li>CI/CD</li>
+      </ul>
+    </section>
+
+    <section id="projets">
+      <h2>Projets</h2>
+      <article>
+        <h3>Automatisation avec Ansible</h3>
+        <p>Inventaire, playbooks idempotents et rôles pour déployer Jenkins, Docker, Portainer et une application conteneurisée.</p>
+      </article>
+      <article>
+        <h3>Lab reproductible avec Vagrant</h3>
+        <p>Vagrantfile multi-machines provisionné par Ansible.</p>
+      </article>
+      <article>
+        <h3>Infrastructure as Code avec Terraform</h3>
+        <p>Ce CV est déployé par Terraform (provider Docker) sur 2 VM Vagrant, derrière un reverse proxy nginx.</p>
+      </article>
+    </section>
+
+    <section id="formation">
+      <h2>Formation</h2>
+      <p><strong>Master DevOps &amp; Cloud</strong> <!-- établissement, années --></p>
+    </section>
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>GitHub : <a href="https://github.com/HaninHajYoussef">github.com/HaninHajYoussef</a></p>
+    </section>
+  </main>
+
+  <footer>Servi par nginx dans un conteneur Docker créé avec Terraform</footer>
+</body>
+</html>

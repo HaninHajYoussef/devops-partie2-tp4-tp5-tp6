@@ -1,0 +1,93 @@
+---
+# TP6 - Intégration : Ansible installe Docker + Terraform, puis Terraform lance le CV
+- name: Installer Docker et Terraform, puis déployer le CV One Page avec Terraform
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    tf_dir: /opt/cv-terraform
+    cv_image: haninhajyoussef/cv-onepage:latest
+    cv_build_local: true
+    hashicorp_arch: "{{ 'arm64' if ansible_architecture == 'aarch64' else 'amd64' }}"
+
+  tasks:
+    - name: Installer Docker et les prérequis
+      ansible.builtin.apt:
+        name:
+          - docker.io
+          - ca-certificates
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Démarrer Docker
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Ajouter vagrant au groupe docker
+      ansible.builtin.user:
+        name: "{{ ansible_user | default('vagrant') }}"
+        groups: docker
+        append: true
+
+    - name: Créer le dossier des clés APT
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Télécharger la clé GPG HashiCorp
+      ansible.builtin.get_url:
+        url: https://apt.releases.hashicorp.com/gpg
+        dest: /etc/apt/keyrings/hashicorp.asc
+        mode: '0644'
+
+    - name: Ajouter le dépôt HashiCorp
+      ansible.builtin.apt_repository:
+        repo: "deb [arch={{ hashicorp_arch }} signed-by=/etc/apt/keyrings/hashicorp.asc] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+        filename: hashicorp
+        state: present
+
+    - name: Installer Terraform
+      ansible.builtin.apt:
+        name: terraform
+        state: present
+
+    - name: Créer le dossier du projet Terraform
+      ansible.builtin.file:
+        path: "{{ tf_dir }}/cv"
+        state: directory
+        mode: '0755'
+
+    - name: Copier la configuration Terraform
+      ansible.builtin.copy:
+        src: "terraform/{{ item }}"
+        dest: "{{ tf_dir }}/{{ item }}"
+        mode: '0644'
+      loop: [main.tf, variables.tf, outputs.tf]
+
+    - name: Copier les sources du CV (Dockerfile, HTML, CSS)
+      ansible.builtin.copy:
+        src: cv/
+        dest: "{{ tf_dir }}/cv/"
+        mode: '0644'
+
+    - name: Terraform init + apply (conteneur CV)
+      community.general.terraform:
+        project_path: "{{ tf_dir }}"
+        state: present
+        force_init: true
+        variables:
+          external_port: "{{ cv_port }}"
+          cv_image: "{{ cv_image }}"
+          build_local: "{{ 'true' if (cv_build_local | bool) else 'false' }}"
+      register: tf
+
+    - name: Afficher le résultat
+      ansible.builtin.debug:
+        msg: "CV disponible sur http://{{ ansible_host }}:{{ cv_port }} (dans la VM : port {{ cv_port }})"

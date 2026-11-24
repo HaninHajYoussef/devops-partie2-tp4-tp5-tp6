@@ -1,0 +1,33 @@
+---
+- name: Créer le dossier de l'application
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Copier les sources de l'image (Dockerfile + index.html)
+  ansible.builtin.copy:
+    src: app/
+    dest: "{{ app_dir }}/app/"
+    mode: '0644'
+  when: app_build_local | bool
+
+- name: Construire l'image Docker sur le nœud
+  community.docker.docker_image:
+    name: "{{ app_image }}"
+    source: build
+    build:
+      path: "{{ app_dir }}/app"
+  when: app_build_local | bool
+
+- name: Générer le fichier docker-compose.yml
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ app_dir }}/docker-compose.yml"
+    mode: '0644'
+
+- name: Lancer le conteneur web avec Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    state: present
+    pull: "{{ 'never' if (app_build_local | bool) else 'missing' }}"

@@ -1,0 +1,12 @@
+all:
+  children:
+    nodes:
+      vars:
+        ansible_user: hanin
+      children:
+        webserver:
+          hosts:
+            192.168.56.102:
+        ftpserver:
+          hosts:
+            192.168.56.103:

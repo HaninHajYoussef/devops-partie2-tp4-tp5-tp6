@@ -1,0 +1,8 @@
+# Généré par Ansible
+services:
+  web:
+    image: "{{ app_image }}"
+    container_name: {{ app_container_name }}
+    ports:
+      - "{{ app_port }}:80"
+    restart: unless-stopped

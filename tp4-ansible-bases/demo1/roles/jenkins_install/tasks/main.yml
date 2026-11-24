@@ -1,0 +1,56 @@
+---
+- name: Installer Java et les prérequis de Jenkins
+  ansible.builtin.apt:
+    name:
+      - fontconfig
+      - "{{ jenkins_java_package }}"
+      - ca-certificates
+      - curl
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Créer le dossier des clés APT
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Télécharger la clé du dépôt Jenkins
+  ansible.builtin.get_url:
+    url: "{{ jenkins_repo_key_url }}"
+    dest: /etc/apt/keyrings/jenkins-keyring.asc
+    mode: '0644'
+
+- name: Ajouter le dépôt Jenkins
+  ansible.builtin.apt_repository:
+    repo: "{{ jenkins_repo }}"
+    filename: jenkins
+    state: present
+
+- name: Installer Jenkins
+  ansible.builtin.apt:
+    name: jenkins
+    state: present
+
+- name: Démarrer Jenkins et l'activer au boot
+  ansible.builtin.service:
+    name: jenkins
+    state: started
+    enabled: true
+
+- name: Attendre que Jenkins écoute sur son port
+  ansible.builtin.wait_for:
+    port: "{{ jenkins_port }}"
+    timeout: 300
+
+- name: Lire le mot de passe administrateur initial
+  ansible.builtin.slurp:
+    src: /var/lib/jenkins/secrets/initialAdminPassword
+  register: jenkins_initial_password
+  failed_when: false
+
+- name: Afficher le mot de passe administrateur initial
+  ansible.builtin.debug:
+    msg: "Jenkins http://{{ ansible_host | default(inventory_hostname) }}:{{ jenkins_port }} - mot de passe initial : {{ jenkins_initial_password.content | default('') | b64decode | trim }}"
+  when: jenkins_initial_password.content is defined
